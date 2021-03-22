@@ -1,0 +1,209 @@
+---
+title: "Baltimore Crime Analysis"
+author: "Kevin Zhispon"
+date: "03/01/2021"
+output: html_document
+---
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+## load packages
+library(lubridate)
+library(tidyverse)
+library(janitor)
+library(skimr)
+library(scales)
+```
+*Note*: If you try to Knit this document at this time, you *will* get an error because there is code in this document that has to be edited (by you!) before it will be able to successfully knit!
+### GitHub Setup
+To get started, you'll want to go to GitHub and start a new repository:
+- Call this repository `final_project`. 
+- Add a short description
+- Check the box to "Initialize this repository with a README. 
+- Click `Create Repository`
+Once the repository has been created, Click on `Clone or download` and copy the "Clone with HTTPS" link provided. You'll use this to clone your repo in RStudio Cloud. Refer to the materials in this course if you're stuck on this part of the project.
+### Directory Setup
+In your project, create folders with the following structure:
+- data/
+  - raw_data/
+  - tidy_data/
+- code/
+  - raw_code/
+  - final_code/
+- figures/
+  - exploratory_figures/
+  - explanatory_figures/
+- products/
+  - writing/
+Upload the data file into the tidy_data folder and this .Rmd file into the final_code folder.
+Once the .Rmd document is in the correct folder, you'll want to **change the author of this document** to your name at the top of the .Rmd document (in the YAML). Save this change before moving to the next step. Refer to the materials in this course if you're stuck on this part of the project.
+### The datas
+Violent crime in the United States has fallen over the last two decades. Even though the violent crime rate has been decreasing since 1990, The United States had the second highest prisoner rate, with 693 prisoners per 100,000 of the national population. And Baltimore, Maryland is infamous for its very high crime rates. According to Forbes, Baltimore is the seventh dangerous city in the United States. The violent crime rate is 1417 per 100.000 residents in a population of 626.848 people in 2017 so Baltimore is the one of the cities which is carrying high risk for local people.
+### Accessing the Data
+The data for this project is from Open Baltimore represents Part I victim based crime data. You can download the data set at [https://www.kaggle.com/sohier/crime-in-baltimore?select=BPD_Part_1_Victim_Based_Crime_Data.csv](https://www.kaggle.com/sohier/crime-in-baltimore?select=BPD_Part_1_Victim_Based_Crime_Data.csv). The variables in the data are:
+* Crime Date
+* Crime Time
+* Crime Code
+* Location
+* Description
+* Inside Outside
+* Weapon
+* Post
+* Distrcit
+* Neighborhood
+* Longitude
+* Latitude
+* Premise
+* Total Incidents
+Let's get to the project. Make sure you have loaded the necessary packages for this project. `tidyverse`, `skimr`, `janitor`, `gridExtra`, `scales`, and `lubridate` are suggested but you can edit any other package that you use there.
+### Importing data
+Import the data into R using the `readr` package and then use the package `janitor` to clean the column names. Write your code in the code chunk below.
+```{r}
+crime <- read_csv("../../data/tidy_data/BPD_Part_1_Victim_Based_Crime_Data.csv") %>%
+  clean_names()
+```
+### Exploratory Analysis of Crime
+How many observations are in the data? Write your code in the chunk below.
+```{r}
+nrow(crime)
+```
+What are the column names and how many columns are in the data?
+```{r}
+colnames(crime)
+ncol(crime)
+```
+What is the structure of the column `crime_date`? We need to convert the column to date format. Use the appropriate function from the **lubridate** package to convert the column to date format. Save the new column back to the `crime_date` column, and save the dataframe back to `crime`. 
+```{r}
+crime <- crime %>% 
+  mutate(crime_date = mdy(crime_date))
+```
+We can use the function `floor_date()` from the package **lubridate** to calculate the number of crimes per month. First we will create a new variable called `crime_month` like below. Then, complete the code to find the number of crimes per month.
+```{r}
+crime_per_month <- crime %>% 
+  mutate(crime_month = floor_date(crime_date, unit = "month")) %>%
+  group_by(crime_month) %>%
+  summarize(count = n())
+```
+Now, use **ggplot2** to plot the crime rate over time using the new variable you created. You can use `geom_line()` for this purpose
+```{r}
+ggplot(crime_per_month, aes(x = crime_month, y = count)) + 
+  geom_line()
+```
+Can you guess why in the very last period crime has dropped so significantly? This is mainly due to the fact that there are incomplete records for the last month in the data (e.g. they stopped collecting data half way through the month). Let's get rid of all the data in the last month we have data available. You should use the function `filter()` from the package **dplyr** and the function `max()` for doing that.
+```{r}
+crime_per_month <- crime_per_month %>% 
+  filter(crime_month != max(crime_month))
+```
+Now plot the same geom_line above.
+```{r}
+ggplot(crime_per_month, aes(x = crime_month, y = count)) + 
+  geom_line()
+```
+Did you get rid of the sudden drop in the crime rate? Now, let's modify our plot by adding month labels to the X axis. Add the following code to the end of your ggplot code: `scale_x_date(date_breaks = "6 month", labels = date_format("%Y %b"))`. You may also want to rotate the x-axis label by adding and expanding on the `theme(axis.text.x = element_text(angle = 90))` function.
+```{r}
+ggplot(crime_per_month, aes(x = crime_month, y = count)) + 
+  geom_line() +
+  scale_x_date(date_breaks = "6 month", labels = date_format("%Y %b")) +
+  theme(axis.text.x = element_text(angle = 90))
+```
+Do you see a trend? Which months of the year is crime at the lowest? Which months of the year is crime rate at the highest?
+What is the structure of the column `crime_time`? We want to extract the hour of the crime from this column. Use the appropriate function from the **lubridate** function to extract hours. Google or the package's manual would probably be your best help. Save the new column back to the `crime_time` column.
+```{r}
+crime <- crime %>% 
+  mutate(crime_time= hour(crime_time))
+```
+Use any plot or table to compare crime rate in different times of the day (using the variable you created above). Either add your own code below or complete the following code. Most crimes happens during what time of the day?
+```{r}
+crime %>% 
+  group_by(crime_time) %>%
+  summarize(num_crime = n()) %>%
+  ggplot(aes(x = crime_time, y = num_crime)) + 
+  geom_line()
+```
+Now, let's group crimes by where they happen. Use `geom_bar()` from **ggplot2** to show crime rates in each neighborhood in Baltimore. You should `group_by` using the column `district`. 
+```{r}
+crime %>% 
+  group_by(district) %>% 
+  summarize(count= n()) %>%
+  ggplot(aes(x = fct_reorder(district, -count), y = count)) + 
+  geom_bar(stat = "identity") + 
+  theme(axis.text.x = element_text(angle = 90))
+```
+Create a variable called `year` that captures the year of each crime. Then create a geom_bar that shows the percentage of each crime type (use column `description`) in each year's overall crime. 
+```{r}
+crime %>% 
+  mutate(year = year(crime_date)) %>%
+  group_by(year, description) %>%
+  summarize(count=n()) %>%
+  ggplot(aes(x = year, y = count, fill = description)) + 
+  geom_bar(stat = "identity", position = "stack") + 
+  theme_minimal()
+```
+Finally, if the city manager asks you to investigate if the number of crimes in certain districts has gone up or down over the years, how would you present your findings? You can use any type of graph. Add your own code below, or complete the following code.
+(Hint: You may need to create the `year` variable, and then use `group_by` and `summarize` afterwards.) 
+```{r}
+crime %>% 
+  mutate(year = year(crime_date)) %>%
+  group_by(year, district) %>%
+  summarize(count= n()) %>%
+  ggplot(aes(x = year, y = count, group = district)) + 
+  geom_line(aes(col = district))
+```
+### Regression Analysis
+Read the lesson on inferential analysis. We are using linear regression to find what factors determine the chances that crime will occur. Run the code below to create a dataframe called `crime_counts` that counts how many crimes occur by year, hour, and district. 
+```{r}
+crime_counts <- crime %>%
+  mutate(year = year(crime_date)) %>% 
+  group_by(year, crime_time, district) %>%
+  summarize(num_crimes = n()) 
+```
+We want to categorize the time of the crime by time of day: morning, afternoon, evening, and night. Create a new variable called `crime_time_cat` that states the crime occured in the morning if it occurred between 5am-11am, afternoon between 11am-5pm, evening between 5pm-11pm and nighttime between 11pm-5am. The first hour is inclusive and the second hour is exclusive. 
+Complete the below code. The first categorization is done for you. (Note: remember that hours are printed in military time.)
+```{r}
+crime_counts <- crime_counts %>%
+  mutate(crime_time_cat = ifelse(crime_time >=5 & crime_time < 11, "morning",
+   # afternoon if at or after 11am and less than 5pm
+  ifelse(crime_time >= 11 & crime_time < 17, "afternoon", 
+   # evening if at or after 5pm and less than 11pm
+  ifelse(crime_time <= 17 & crime_time < 23, "evening",
+    # night if at or after 11pm or before 5am
+  ifelse(crime_time <= 23 & crime_time <5, "night", NA))))) 
+
+crime_counts <- crime_counts %>%
+mutate(district = case_when(
+district  %in% c("NORTHERN", "NORTHEASTERN", "NORTHWESTERN") ~ "Northern_District",
+district %in% c("CENTRAL", "EASTERN", "WESTERN") ~ "Central_District",
+district %in% c("SOUTHERN", "SOUTHEASTERN", "SOUTHWESTERN") ~ "Southern_Deistrict"))
+
+ggplot(crime_counts, aes(x = crime_time, y = num_crimes, group = district)) +
+  geom_line(aes(col = district))
+```
+Using the `crime_counts` dataframe, use the variable indicating number of crimes as the dependent variables (Y) and year, categorical time of day, and district as independent variables. Make sure to use the district and the time of day as factors.
+```{r}
+model = lm(num_crimes ~ year + crime_time_cat + district, crime_counts)
+summary(model)
+```
+Answer the following questions based on your regression result.
+* Does a later year increase the chance of crime?
+No
+* Does morning time increase the chance of crime?
+No
+* Which district has the highest chance of crime?
+Northeastern
+## Final Steps
+Congratulations! You have completed the project. There are a few final notes:
+### Add Markdown Text to .Rmd
+Before finalizing your project you'll want be sure there are **comments in your code chunks** and **text outside of your code chunks** to explain what you're doing in each code chunk. These explanations are incredibly helpful for someone who doesn't code or someone unfamiliar to your project.
+### Knit your R Markdown Document
+Last but not least, you'll want to **Knit your .Rmd document into an HTML document**. If you get an error, take a look at what the error says and edit your .Rmd document. Then, try to Knit again! Troubleshooting these error messages will teach you a lot about coding in R.
+### A Few Final Checks
+A complete project should have:
+- Completed code chunks throughout the .Rmd document (your RMarkdown document should Knit without any error)
+- Comments in your code chunks
+- Answered all questions throughout this exercise.
+### Final `push` to GitHub
+Now that you've finalized your project, you'll do one final **push to GitHub**. `add`, `commit`, and `push` your work to GitHub. Navigate to your GitHub repository, and answer the final question below! At the end, submit the link to your github repository to us.
+**Note**: If you're stuck on this, these steps were covered in detail in an earlier course: [Version Control](https://urldefense.proofpoint.com/v2/url?u=https-3A__leanpub.com_universities_courses_jhu_version-2Dcontrol&d=DwIFaQ&c=shNJtf5dKgNcPZ6Yh64b-A&r=cLAmnyp60bQNvLC1v4ZtBlWEvy8VTgDTii0TvDi-EvQ&m=C4b8zZsDMNwjBUeGm5sHLm02QBybBQuY3_VJPDMSk1w&s=h0u4D-KYPeW48MGiaV1QUmxwpHeJemqvCa7sLXoZ_Y8&e= ). Refer to the materials in this course if you're stuck on this part of the project.
+Collapse
+
+
+
